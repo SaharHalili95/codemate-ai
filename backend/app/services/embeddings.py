@@ -246,7 +246,8 @@ async def test_embeddings_service():
     sim2 = await service.compute_similarity(embeddings[0], embeddings[2])
     print(f"   login <-> authenticate: {sim1:.4f}")
     print(f"   login <-> pizza: {sim2:.4f}")
-    print(f"   ✅ {'login' and 'authenticate' are more similar!" if sim1 > sim2 else '❌ Something wrong!'}")
+    result = "login and authenticate are more similar!" if sim1 > sim2 else "Something wrong!"
+    print(f"   ✅ {result}" if sim1 > sim2 else f"   ❌ {result}")
 
     # Test 4: Stats
     print("\n4️⃣ Embedding stats:")
