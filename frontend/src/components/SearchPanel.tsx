@@ -2,30 +2,19 @@ import { useState } from 'react';
 import { Search, FileCode } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { apiService } from '../services/api';
-import type { SearchResult } from '../types';
+import { clientStorage, type CodeChunk } from '../services/clientStorage';
 
 export default function SearchPanel() {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<CodeChunk[]>([]);
   const [searched, setSearched] = useState(false);
 
-  const handleSearch = async () => {
+  const handleSearch = () => {
     if (!query.trim()) return;
 
-    setLoading(true);
     setSearched(true);
-
-    try {
-      const response = await apiService.search(query, 5);
-      setResults(response.results);
-    } catch (error) {
-      console.error('Search failed:', error);
-      setResults([]);
-    } finally {
-      setLoading(false);
-    }
+    const searchResults = clientStorage.search(query, 5);
+    setResults(searchResults);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -37,9 +26,9 @@ export default function SearchPanel() {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Semantic Code Search</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Code Search</h2>
         <p className="text-gray-600">
-          Search for code by meaning, not just keywords
+          Search for code snippets by keywords
         </p>
       </div>
 
@@ -52,25 +41,21 @@ export default function SearchPanel() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="e.g., 'authentication logic', 'database connection', 'error handling'..."
-            className="input-field pl-10"
+            placeholder="e.g., 'function', 'class', 'import'..."
+            className="w-full pl-10 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
         </div>
         <button
           onClick={handleSearch}
-          disabled={loading || !query.trim()}
-          className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!query.trim()}
+          className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? 'Searching...' : 'Search'}
+          Search
         </button>
       </div>
 
       {/* Results */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : searched && results.length === 0 ? (
+      {searched && results.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           <FileCode className="w-16 h-16 mx-auto mb-4 opacity-50" />
           <p className="text-lg font-medium">No results found</p>
@@ -78,59 +63,32 @@ export default function SearchPanel() {
         </div>
       ) : results.length > 0 ? (
         <div className="space-y-4">
-          <div className="text-sm text-gray-600">
-            Found <span className="font-medium">{results.length}</span> results
-          </div>
-
-          {results.map((result, index) => (
-            <div key={index} className="bg-white rounded-lg shadow-md p-6">
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <FileCode className="w-5 h-5 text-primary-600" />
-                  <div>
-                    <h3 className="font-medium text-gray-900">
-                      {result.chunk.file_name}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      Lines {result.chunk.line_start}-{result.chunk.line_end} • {result.chunk.language}
-                    </p>
+          {results.map((result) => (
+            <div key={result.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <FileCode className="w-4 h-4 text-gray-500" />
+                    <span className="font-medium text-gray-900">{result.fileName}</span>
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs text-gray-500">Relevance:</span>
-                  <span className="bg-primary-100 text-primary-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                    {(result.score * 100).toFixed(1)}%
+                  <span className="text-sm text-gray-500">
+                    Lines {result.lineStart}-{result.lineEnd}
                   </span>
                 </div>
               </div>
-
-              {/* Code Preview */}
-              <div className="overflow-x-auto">
+              <div className="p-4">
                 <SyntaxHighlighter
-                  language={result.chunk.language}
-                  style={vscDarkPlus as any}
-                  customStyle={{
-                    margin: 0,
-                    borderRadius: '0.5rem',
-                    fontSize: '0.875rem',
-                  }}
+                  language={result.language}
+                  style={vscDarkPlus}
+                  customStyle={{ margin: 0, borderRadius: '0.5rem' }}
                 >
-                  {result.chunk.content}
+                  {result.content}
                 </SyntaxHighlighter>
               </div>
             </div>
           ))}
         </div>
-      ) : (
-        <div className="text-center py-12 text-gray-400">
-          <Search className="w-16 h-16 mx-auto mb-4 opacity-50" />
-          <p className="text-lg">Search for code in your codebase</p>
-          <p className="text-sm mt-2">
-            Try searching for functionality like "login", "database", or "validation"
-          </p>
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Upload, FileCode, CheckCircle, AlertCircle, X } from 'lucide-react';
-import { apiService } from '../services/api';
-import type { UploadResponse } from '../types';
+import { clientStorage } from '../services/clientStorage';
 
 interface FileUploaderProps {
   onUploadSuccess?: () => void;
@@ -10,7 +9,7 @@ interface FileUploaderProps {
 export default function FileUploader({ onUploadSuccess }: FileUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<UploadResponse | null>(null);
+  const [result, setResult] = useState<{ fileName: string; chunks: number; language: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -46,11 +45,16 @@ export default function FileUploader({ onUploadSuccess }: FileUploaderProps) {
     setResult(null);
 
     try {
-      const response = await apiService.uploadFile(file);
-      setResult(response);
+      const codeFile = await clientStorage.addFile(file);
+      const chunks = clientStorage.chunkFile(codeFile);
+      setResult({
+        fileName: codeFile.fileName,
+        chunks: chunks.length,
+        language: codeFile.language,
+      });
       onUploadSuccess?.();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to upload file');
+      setError(err.message || 'Failed to upload file');
     } finally {
       setUploading(false);
     }
@@ -61,7 +65,7 @@ export default function FileUploader({ onUploadSuccess }: FileUploaderProps) {
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Upload Your Code</h2>
         <p className="text-gray-600">
-          Upload code files to analyze and chat about them
+          Upload code files to analyze and chat about them (stored locally in your browser)
         </p>
       </div>
 
@@ -98,7 +102,7 @@ export default function FileUploader({ onUploadSuccess }: FileUploaderProps) {
 
           <div className="text-center">
             <p className="text-lg font-medium text-gray-900">
-              {uploading ? 'Uploading...' : 'Drop your code file here'}
+              {uploading ? 'Processing...' : 'Drop your code file here'}
             </p>
             <p className="text-sm text-gray-500 mt-1">
               or click to browse
@@ -126,16 +130,15 @@ export default function FileUploader({ onUploadSuccess }: FileUploaderProps) {
               <h3 className="font-medium text-green-900">Upload Successful!</h3>
               <div className="mt-2 text-sm text-green-800 space-y-1">
                 <p>
-                  <span className="font-medium">File:</span> {result.file_name}
+                  <span className="font-medium">File:</span> {result.fileName}
                 </p>
                 <p>
                   <span className="font-medium">Language:</span> {result.language}
                 </p>
                 <p>
-                  <span className="font-medium">Chunks created:</span> {result.chunks_created}
+                  <span className="font-medium">Chunks created:</span> {result.chunks}
                 </p>
               </div>
-              <p className="mt-2 text-sm text-green-700">{result.message}</p>
             </div>
             <button
               onClick={() => setResult(null)}
@@ -174,10 +177,10 @@ export default function FileUploader({ onUploadSuccess }: FileUploaderProps) {
             <h3 className="font-medium text-blue-900 mb-2">How it works:</h3>
             <ol className="list-decimal list-inside space-y-1 text-sm text-blue-800">
               <li>Upload your code file (Python, JavaScript, TypeScript, etc.)</li>
-              <li>The system parses and chunks your code into meaningful segments</li>
-              <li>Each chunk is converted to embeddings (vectors)</li>
-              <li>Embeddings are stored in the vector database for semantic search</li>
-              <li>Now you can chat about your code!</li>
+              <li>The file is stored locally in your browser (localStorage)</li>
+              <li>Code is chunked into meaningful segments for analysis</li>
+              <li>Chat with AI about your code using your OpenAI API key</li>
+              <li>All processing happens client-side - your code never leaves your browser!</li>
             </ol>
           </div>
         </div>

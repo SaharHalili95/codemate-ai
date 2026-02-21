@@ -1,303 +1,189 @@
-# 🤖 CodeMate AI - RAG-Powered Code Assistant
+# 🤖 CodeMate AI - Client-Side Code Assistant
 
 ![CI](https://github.com/SaharHalili95/codemate-ai/actions/workflows/ci.yml/badge.svg)
-![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-🌐 **[Live Demo](https://codemate-ai.vercel.app)** (Coming Soon)
+🌐 **[Live Demo](https://saharhalili95.github.io/codemate-ai/)**
 
-A professional RAG-powered code assistant that lets you chat with your codebase using AI. Upload your code, ask questions in natural language, and get intelligent answers with relevant code snippets.
-
-![CodeMate AI Demo](docs/demo.gif)
+A lightweight, privacy-first code assistant that runs entirely in your browser. Upload code files, search through them, and chat with AI about your code - all without sending your code to any server!
 
 ## ✨ Features
 
-- 🤖 **AI-Powered Q&A** - Ask questions about your code in natural language
-- 🔍 **Semantic Search** - Find code by meaning, not just keywords
+- 🔒 **100% Client-Side** - Your code never leaves your browser
+- 🤖 **AI-Powered Chat** - Ask questions about your code using OpenAI's GPT-4
+- 🔍 **Code Search** - Find code snippets by keywords
 - 📁 **Multiple Languages** - Python, JavaScript, TypeScript, Java, C++, Go, Rust
-- 💬 **Chat Interface** - Interactive conversation with code context
-- 🎨 **Syntax Highlighting** - Beautiful code display with Prism
-- ⚡ **Fast Retrieval** - ChromaDB vector database for lightning-quick searches
-- 🚀 **Modern Stack** - React 18, TypeScript, FastAPI, Tailwind CSS
-- 📊 **Analytics Dashboard** - View statistics about your indexed codebase
-
-## 🏗️ Architecture
-
-### RAG Pipeline
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     RAG Architecture                         │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  User Question                                               │
-│       │                                                      │
-│       ▼                                                      │
-│  Embedding Service (OpenAI)                                  │
-│       │                                                      │
-│       ▼                                                      │
-│  Vector Search (ChromaDB)                                    │
-│       │                                                      │
-│       ▼                                                      │
-│  Top K Relevant Code Chunks                                  │
-│       │                                                      │
-│       ▼                                                      │
-│  LLM with Context (GPT-4/Claude)                             │
-│       │                                                      │
-│       ▼                                                      │
-│  AI-Generated Answer                                         │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Tech Stack
-
-**Backend:**
-- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
-- [OpenAI API](https://openai.com/) - Embeddings & LLM
-- [ChromaDB](https://www.trychroma.com/) - Vector database
-- [Pydantic](https://pydantic-docs.helpmanual.io/) - Data validation
-- [Uvicorn](https://www.uvicorn.org/) - ASGI server
-
-**Frontend:**
-- [React 18](https://react.dev/) + TypeScript
-- [Vite](https://vitejs.dev/) - Build tool
-- [Tailwind CSS](https://tailwindcss.com/) - Styling
-- [Prism](https://prismjs.com/) - Syntax highlighting
-- [React Markdown](https://github.com/remarkjs/react-markdown) - Markdown rendering
+- 💬 **Interactive Chat** - Conversational interface with code context
+- 🎨 **Syntax Highlighting** - Beautiful code display
+- 📊 **Statistics** - View analytics about your uploaded files
+- 🔑 **API Key Management** - Securely stored in your browser's localStorage
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### Live Demo
 
-- Python 3.11+
-- Node.js 18+
-- OpenAI API Key ([Get one here](https://platform.openai.com/api-keys))
+Visit **[https://saharhalili95.github.io/codemate-ai/](https://saharhalili95.github.io/codemate-ai/)**
 
-### Backend Setup
+1. **Get an OpenAI API Key**
+   - Go to [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+   - Create a new API key
+   - Copy it
 
-```bash
-# Navigate to backend directory
-cd backend
+2. **Set Your API Key**
+   - Click "Set API Key" in the top right
+   - Paste your key
+   - Click "Save" (it's stored securely in your browser)
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+3. **Upload Code**
+   - Drag and drop a code file (.py, .js, .ts, etc.)
+   - Or click to browse and select
 
-# Install dependencies
-pip install -r requirements.txt
+4. **Start Chatting**
+   - Go to the "Chat" tab
+   - Ask questions about your code!
 
-# Configure environment variables
-cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY
-
-# Run the server
-python -m app.main
-```
-
-The backend will be available at `http://localhost:8000`
-
-### Frontend Setup
+### Local Development
 
 ```bash
-# Navigate to frontend directory
-cd frontend
+# Clone the repository
+git clone https://github.com/SaharHalili95/codemate-ai.git
+cd codemate-ai/frontend
 
 # Install dependencies
 npm install
 
-# Configure environment variables
-cp .env.example .env
-# Default API URL is http://localhost:8000
-
-# Run development server
+# Start development server
 npm run dev
+
+# Open http://localhost:5173
 ```
 
-The frontend will be available at `http://localhost:5173`
+## 🏗️ How It Works
 
-## 📖 Usage
-
-### 1. Upload Code
-
-- Click on the "Upload Code" tab
-- Drag & drop a code file or click to browse
-- Supported formats: `.py`, `.js`, `.ts`, `.java`, `.cpp`, `.go`, `.rs`
-- The system will parse, chunk, and index your code
-
-### 2. Chat with Your Code
-
-- Switch to the "Chat" tab
-- Ask questions like:
-  - "How does the login function work?"
-  - "Explain the authentication flow"
-  - "What does this error handling code do?"
-- Get AI-powered answers with relevant code snippets
-
-### 3. Semantic Search
-
-- Use the "Search" tab for direct code search
-- Search by functionality, not just keywords
-- View relevance scores for each result
-
-### 4. View Statistics
-
-- Check the "Stats" tab to see:
-  - Total chunks indexed
-  - Number of files
-  - Language breakdown
-  - Database information
-
-## 🎯 API Endpoints
-
-### Backend API
+### Client-Side Architecture
 
 ```
-POST /upload          - Upload a code file
-POST /chat            - Chat with your codebase
-POST /chat/stream     - Stream chat responses
-POST /search          - Semantic code search
-DELETE /files/{name}  - Delete a file's chunks
-GET /stats            - Get database statistics
-GET /                 - Health check
+┌─────────────────────────────────────────────────────────┐
+│                  Client-Side Processing                  │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  1. Upload Code → localStorage                           │
+│  2. Parse & Chunk Code                                   │
+│  3. User Question                                        │
+│  4. Search Relevant Chunks (keyword matching)            │
+│  5. Send Context + Question → OpenAI API                 │
+│  6. Display AI Response                                  │
+│                                                          │
+│  All processing happens in your browser!                 │
+│  Code never sent anywhere except OpenAI for chat.        │
+└─────────────────────────────────────────────────────────┘
 ```
 
-Full API documentation available at `http://localhost:8000/docs` (Swagger UI)
+## 💻 Tech Stack
 
-## 🛠️ Development
+### Frontend
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool
+- **Tailwind CSS** - Styling
+- **React Markdown** - Markdown rendering
+- **React Syntax Highlighter** - Code highlighting
 
-### Project Structure
+### AI Integration
+- **OpenAI API** - GPT-4 for intelligent responses
+- **localStorage** - Client-side storage
+
+### Services
+- **clientStorage.ts** - Manages code files in localStorage
+- **openai.ts** - Direct OpenAI API integration
+
+## 📦 Project Structure
 
 ```
 codemate-ai/
-├── backend/
-│   ├── app/
-│   │   ├── main.py              # FastAPI app
-│   │   ├── core/
-│   │   │   └── config.py        # Configuration
-│   │   ├── models/
-│   │   │   └── schemas.py       # Data models
-│   │   └── services/
-│   │       ├── embeddings.py    # Embedding generation
-│   │       ├── vector_store.py  # Vector DB management
-│   │       ├── parser.py        # Code parsing & chunking
-│   │       └── llm.py           # LLM integration
-│   ├── requirements.txt
-│   └── tests/
 ├── frontend/
 │   ├── src/
-│   │   ├── components/         # React components
-│   │   ├── services/          # API integration
-│   │   ├── types/             # TypeScript types
-│   │   └── App.tsx            # Main app
-│   └── package.json
+│   │   ├── components/
+│   │   │   ├── App.tsx           # Main app component
+│   │   │   ├── ChatInterface.tsx # Chat UI
+│   │   │   ├── FileUploader.tsx  # File upload
+│   │   │   ├── SearchPanel.tsx   # Code search
+│   │   │   └── StatsPanel.tsx    # Statistics
+│   │   ├── services/
+│   │   │   ├── clientStorage.ts  # localStorage management
+│   │   │   └── openai.ts         # OpenAI API calls
+│   │   └── main.tsx
+│   ├── package.json
+│   └── vite.config.ts
 └── README.md
 ```
 
-### Running Tests
+## 🔑 API Key Security
 
-```bash
-# Backend tests
-cd backend
-pytest
+- Your OpenAI API key is stored in your browser's localStorage
+- It's never sent to any server except OpenAI's official API
+- You can clear it anytime from your browser settings
+- Consider setting usage limits on your OpenAI account
 
-# Frontend tests (if available)
-cd frontend
-npm test
-```
+## 🌟 Features in Detail
+
+### 1. File Upload
+- Drag & drop or browse to select files
+- Supports .py, .js, .ts, .tsx, .jsx, .java, .cpp, .go, .rs
+- Files stored locally in your browser
+- Automatic language detection
+
+### 2. Code Search
+- Simple keyword-based search
+- Searches through all uploaded files
+- Displays matches with syntax highlighting
+- Shows file name and line numbers
+
+### 3. AI Chat
+- Ask questions about your uploaded code
+- AI retrieves relevant code chunks as context
+- Supports conversation history
+- Markdown formatting in responses
+- Syntax-highlighted code blocks
+
+### 4. Statistics
+- Total files and chunks
+- Language breakdown
+- File management (delete individual files or clear all)
 
 ## 🚀 Deployment
 
-### Deploy Backend (Railway/Render)
+The app is automatically deployed to GitHub Pages when changes are pushed to main.
 
-1. Push your code to GitHub
-2. Connect your repository to [Railway](https://railway.app/) or [Render](https://render.com/)
-3. Set environment variables:
-   - `OPENAI_API_KEY`
-   - `LLM_PROVIDER=openai`
-   - Other settings from `.env.example`
-4. Deploy!
-
-### Deploy Frontend (Vercel)
+To deploy manually:
 
 ```bash
 cd frontend
 npm run build
-
-# Deploy to Vercel
-vercel --prod
+npm run deploy
 ```
-
-Or connect your GitHub repository to [Vercel](https://vercel.com/) for automatic deployments.
-
-## 🔧 Configuration
-
-### Environment Variables
-
-**Backend** (`.env`):
-```bash
-OPENAI_API_KEY=sk-...
-LLM_PROVIDER=openai
-CHUNK_SIZE=1000
-CHUNK_OVERLAP=200
-TOP_K=5
-MODEL_NAME=gpt-4-turbo-preview
-```
-
-**Frontend** (`.env`):
-```bash
-VITE_API_URL=http://localhost:8000
-```
-
-## 📊 Key Concepts
-
-### Embeddings
-Vector representations of text that capture semantic meaning. Similar code produces similar embeddings.
-
-### Vector Database
-Specialized database for storing and searching embeddings efficiently using similarity metrics.
-
-### RAG (Retrieval Augmented Generation)
-An architecture that combines information retrieval with LLM generation for accurate, context-aware responses.
-
-### Chunking
-Splitting code into smaller, meaningful segments for better embedding quality and retrieval.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) file for details
+
+## 👤 Author
+
+**Sahar Halili**
+
+- GitHub: [@SaharHalili95](https://github.com/SaharHalili95)
+- Portfolio: [saharhalili95.github.io/html-portfolio](https://saharhalili95.github.io/html-portfolio/)
+- LinkedIn: [Sahar Halili](https://www.linkedin.com/in/sahar-halili-36ba38300)
 
 ## 🙏 Acknowledgments
 
-- OpenAI for the Embeddings API and GPT models
-- ChromaDB for the vector database
-- FastAPI for the excellent Python web framework
-- React team for the amazing UI library
-
-## 📬 Contact
-
-**Sahar Halili**
-- GitHub: [@SaharHalili95](https://github.com/SaharHalili95)
-- LinkedIn: [Sahar Halili](https://www.linkedin.com/in/sahar-halili-36ba38300)
-- Email: sahar_halili@icloud.com
-
-## 🌟 Star History
-
-If you find this project useful, please consider giving it a star ⭐
+- OpenAI for the GPT API
+- React and Vite communities
+- All open-source contributors
 
 ---
 
-<div align="center">
-Built with ❤️ by Sahar Halili
-</div>
+**Built with ❤️ and 🤖 AI**
+
+⭐ Star this repo if you find it useful!

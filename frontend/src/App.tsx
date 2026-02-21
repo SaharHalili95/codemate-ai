@@ -1,32 +1,26 @@
-import { useState, useEffect } from 'react';
-import { Upload, MessageSquare, Search, Database, Github } from 'lucide-react';
+import { useState } from 'react';
+import { Upload, MessageSquare, Search, Database, Github, Key } from 'lucide-react';
 import ChatInterface from './components/ChatInterface';
 import FileUploader from './components/FileUploader';
 import SearchPanel from './components/SearchPanel';
 import StatsPanel from './components/StatsPanel';
-import { apiService } from './services/api';
-import type { HealthResponse } from './types';
+import { clientStorage } from './services/clientStorage';
 
-type Tab = 'chat' | 'upload' | 'search' | 'stats';
+type Tab = 'upload' | 'chat' | 'search' | 'stats';
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('upload');
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  const [apiKey, setApiKey] = useState(localStorage.getItem('openai-api-key') || '');
+  const [showApiKeyInput, setShowApiKeyInput] = useState(!apiKey);
+  const [stats, setStats] = useState(clientStorage.getStats());
 
-  useEffect(() => {
-    checkHealth();
-  }, []);
+  const handleApiKeySave = () => {
+    localStorage.setItem('openai-api-key', apiKey);
+    setShowApiKeyInput(false);
+  };
 
-  const checkHealth = async () => {
-    try {
-      const data = await apiService.getHealth();
-      setHealth(data);
-      setIsConnected(data.status === 'healthy');
-    } catch (error) {
-      setIsConnected(false);
-      console.error('Backend not connected:', error);
-    }
+  const handleUploadSuccess = () => {
+    setStats(clientStorage.getStats());
   };
 
   const tabs = [
@@ -48,25 +42,24 @@ function App() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">CodeMate AI</h1>
-                <p className="text-sm text-gray-500">RAG-Powered Code Assistant</p>
+                <p className="text-sm text-gray-500">Client-Side Code Assistant</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div
-                  className={`w-3 h-3 rounded-full ${
-                    isConnected ? 'bg-green-500' : 'bg-red-500'
-                  } animate-pulse`}
-                />
-                <span className="text-sm text-gray-600">
-                  {isConnected ? 'Connected' : 'Disconnected'}
-                </span>
+              <button
+                onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  apiKey
+                    ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                    : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                }`}
+              >
+                <Key className="w-4 h-4" />
+                <span>{apiKey ? 'API Key Set' : 'Set API Key'}</span>
+              </button>
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">{stats.totalChunks}</span> chunks
               </div>
-              {health && (
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">{health.total_chunks}</span> chunks
-                </div>
-              )}
               <a
                 href="https://github.com/SaharHalili95/codemate-ai"
                 target="_blank"
@@ -82,15 +75,45 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {!isConnected && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center space-x-2 text-red-800">
-              <div className="w-2 h-2 bg-red-500 rounded-full" />
-              <p className="font-medium">Backend is not connected</p>
+        {/* API Key Setup */}
+        {showApiKeyInput && (
+          <div className="mb-6 bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">OpenAI API Key Setup</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Enter your OpenAI API Key
+                </label>
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="sk-..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                />
+                <p className="mt-2 text-sm text-gray-500">
+                  Get your API key from{' '}
+                  <a
+                    href="https://platform.openai.com/api-keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-600 hover:text-primary-700 font-medium"
+                  >
+                    platform.openai.com/api-keys
+                  </a>
+                </p>
+                <p className="mt-1 text-sm text-gray-500">
+                  Your API key is stored locally in your browser and never sent to any server except OpenAI.
+                </p>
+              </div>
+              <button
+                onClick={handleApiKeySave}
+                disabled={!apiKey}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save API Key
+              </button>
             </div>
-            <p className="text-sm text-red-600 mt-1">
-              Make sure the FastAPI backend is running on http://localhost:8000
-            </p>
           </div>
         )}
 
@@ -122,10 +145,10 @@ function App() {
           </div>
 
           <div className="p-6">
-            {activeTab === 'upload' && <FileUploader onUploadSuccess={checkHealth} />}
-            {activeTab === 'chat' && <ChatInterface />}
+            {activeTab === 'upload' && <FileUploader onUploadSuccess={handleUploadSuccess} />}
+            {activeTab === 'chat' && <ChatInterface apiKey={apiKey} />}
             {activeTab === 'search' && <SearchPanel />}
-            {activeTab === 'stats' && <StatsPanel />}
+            {activeTab === 'stats' && <StatsPanel stats={stats} />}
           </div>
         </div>
 
@@ -143,7 +166,7 @@ function App() {
             </a>
           </p>
           <p className="mt-1">
-            Powered by OpenAI • ChromaDB • FastAPI • React
+            Powered by OpenAI • React • TypeScript • Client-Side Processing
           </p>
         </footer>
       </main>

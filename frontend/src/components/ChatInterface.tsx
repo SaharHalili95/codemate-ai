@@ -1,13 +1,22 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Code2 } from 'lucide-react';
+import { Send, Bot, User, AlertCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { apiService } from '../services/api';
-import type { ChatMessage } from '../types';
+import { openaiService } from '../services/openai';
+import { clientStorage } from '../services/clientStorage';
 
-export default function ChatInterface() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface ChatInterfaceProps {
+  apiKey: string;
+}
+
+export default function ChatInterface({ apiKey }: ChatInterfaceProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -23,10 +32,14 @@ export default function ChatInterface() {
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
-    const userMessage: ChatMessage = {
+    if (!apiKey) {
+      alert('Please set your OpenAI API key first!');
+      return;
+    }
+
+    const userMessage: Message = {
       role: 'user',
       content: input,
-      timestamp: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -34,25 +47,27 @@ export default function ChatInterface() {
     setLoading(true);
 
     try {
-      const response = await apiService.chat({
-        message: input,
-        conversation_id: 'default',
-        include_history: true,
-      });
+      // Search for relevant code chunks
+      const context = clientStorage.search(input, 5);
 
-      const assistantMessage: ChatMessage = {
+      // Get AI response with context
+      const response = await openaiService.chat(
+        apiKey,
+        input,
+        context,
+        messages
+      );
+
+      const assistantMessage: Message = {
         role: 'assistant',
-        content: response.message,
-        sources: response.sources,
-        timestamp: new Date().toISOString(),
+        content: response,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: any) {
-      const errorMessage: ChatMessage = {
+      const errorMessage: Message = {
         role: 'assistant',
-        content: `Error: ${error.response?.data?.detail || 'Failed to get response'}`,
-        timestamp: new Date().toISOString(),
+        content: `Error: ${error.message || 'Failed to get response'}`,
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
@@ -67,14 +82,29 @@ export default function ChatInterface() {
     }
   };
 
+  const stats = clientStorage.getStats();
+
   return (
     <div className="flex flex-col h-[600px]">
       <div className="text-center mb-4">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Chat with Your Code</h2>
         <p className="text-gray-600">
-          Ask questions about your codebase and get AI-powered answers
+          Ask questions about your uploaded code files
         </p>
       </div>
+
+      {stats.totalFiles === 0 && (
+        <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-yellow-800">
+                No code files uploaded yet. Please upload some code files first!
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Messages Container */}
       <div className="flex-1 overflow-y-auto bg-gray-50 rounded-lg p-4 space-y-4 mb-4">
@@ -84,9 +114,9 @@ export default function ChatInterface() {
             <p className="text-lg">Start a conversation!</p>
             <p className="text-sm mt-2">Try asking:</p>
             <ul className="text-sm mt-2 space-y-1 text-center">
-              <li>"How does the login function work?"</li>
               <li>"What does this code do?"</li>
-              <li>"Explain the authentication flow"</li>
+              <li>"Explain the main function"</li>
+              <li>"How can I improve this code?"</li>
             </ul>
           </div>
         ) : (
@@ -99,72 +129,51 @@ export default function ChatInterface() {
                 }`}
               >
                 {message.role === 'assistant' && (
-                  <div className="flex-shrink-0 w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                    <Bot className="w-5 h-5 text-primary-600" />
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-white" />
                   </div>
                 )}
 
                 <div
-                  className={`max-w-[70%] rounded-lg p-4 ${
+                  className={`max-w-[80%] rounded-lg p-4 ${
                     message.role === 'user'
                       ? 'bg-primary-600 text-white'
-                      : 'bg-white shadow-md'
+                      : 'bg-white text-gray-900 shadow-sm'
                   }`}
                 >
-                  <div className="markdown-content prose prose-sm max-w-none">
-                    <ReactMarkdown
-                      components={{
-                        code({ node, inline, className, children, ...props }) {
-                          const match = /language-(\w+)/.exec(className || '');
-                          return !inline && match ? (
-                            <SyntaxHighlighter
-                              style={vscDarkPlus as any}
-                              language={match[1]}
-                              PreTag="div"
-                              {...props}
-                            >
-                              {String(children).replace(/\n$/, '')}
-                            </SyntaxHighlighter>
-                          ) : (
-                            <code className={className} {...props}>
-                              {children}
-                            </code>
-                          );
-                        },
-                      }}
-                    >
-                      {message.content}
-                    </ReactMarkdown>
-                  </div>
-
-                  {/* Sources */}
-                  {message.sources && message.sources.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
-                        <Code2 className="w-4 h-4" />
-                        <span className="font-medium">Sources:</span>
-                      </div>
-                      <div className="space-y-2">
-                        {message.sources.map((source, idx) => (
-                          <div
-                            key={idx}
-                            className="bg-gray-50 rounded p-2 text-xs"
-                          >
-                            <div className="font-medium text-gray-900">
-                              {source.file_name} (lines {source.line_start}-{source.line_end})
-                            </div>
-                            <div className="text-gray-600 mt-1 font-mono">
-                              {source.content.substring(0, 100)}...
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                  {message.role === 'user' ? (
+                    <p className="whitespace-pre-wrap">{message.content}</p>
+                  ) : (
+                    <div className="prose prose-sm max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          code({ inline, className, children, ...props }: any) {
+                            const match = /language-(\w+)/.exec(className || '');
+                            return !inline && match ? (
+                              <SyntaxHighlighter
+                                style={vscDarkPlus}
+                                language={match[1]}
+                                PreTag="div"
+                                {...props}
+                              >
+                                {String(children).replace(/\n$/, '')}
+                              </SyntaxHighlighter>
+                            ) : (
+                              <code className={className} {...props}>
+                                {children}
+                              </code>
+                            );
+                          },
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
                     </div>
                   )}
                 </div>
 
                 {message.role === 'user' && (
-                  <div className="flex-shrink-0 w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
                     <User className="w-5 h-5 text-white" />
                   </div>
                 )}
@@ -173,14 +182,14 @@ export default function ChatInterface() {
 
             {loading && (
               <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                  <Bot className="w-5 h-5 text-primary-600" />
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-white" />
                 </div>
-                <div className="bg-white rounded-lg p-4 shadow-md">
+                <div className="bg-white rounded-lg p-4 shadow-sm">
                   <div className="flex space-x-2">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100" />
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200" />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                 </div>
               </div>
@@ -193,21 +202,22 @@ export default function ChatInterface() {
 
       {/* Input Area */}
       <div className="flex space-x-2">
-        <textarea
+        <input
+          type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder="Ask a question about your code..."
-          disabled={loading}
-          rows={2}
-          className="flex-1 input-field resize-none"
+          disabled={loading || !apiKey}
+          className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50"
         />
         <button
           onClick={handleSend}
-          disabled={loading || !input.trim()}
-          className="btn-primary h-auto px-6 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={loading || !input.trim() || !apiKey}
+          className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-colors"
         >
           <Send className="w-5 h-5" />
+          <span>Send</span>
         </button>
       </div>
     </div>

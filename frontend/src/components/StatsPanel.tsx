@@ -1,61 +1,37 @@
-import { useState, useEffect } from 'react';
-import { Database, FileCode, Loader, TrendingUp } from 'lucide-react';
-import { apiService } from '../services/api';
-import type { Stats } from '../types';
+import { Database, FileCode, Trash2 } from 'lucide-react';
+import { clientStorage } from '../services/clientStorage';
 
-export default function StatsPanel() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface StatsPanelProps {
+  stats: {
+    totalFiles: number;
+    totalChunks: number;
+    languages: Record<string, number>;
+  };
+}
 
-  useEffect(() => {
-    loadStats();
-  }, []);
+export default function StatsPanel({ stats }: StatsPanelProps) {
+  const languages = Object.entries(stats.languages).sort((a, b) => b[1] - a[1]);
+  const files = clientStorage.getFiles();
 
-  const loadStats = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const data = await apiService.getStats();
-      setStats(data);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load stats');
-    } finally {
-      setLoading(false);
+  const handleClearAll = () => {
+    if (confirm('Are you sure you want to delete all uploaded files?')) {
+      clientStorage.clear();
+      window.location.reload();
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-12 text-red-600">
-        <p className="text-lg font-medium">Failed to load statistics</p>
-        <p className="text-sm mt-2">{error}</p>
-        <button onClick={loadStats} className="btn-primary mt-4">
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  if (!stats) return null;
-
-  const languages = Object.entries(stats.languages).sort((a, b) => b[1] - a[1]);
-  const totalChunks = stats.total_chunks;
+  const handleDeleteFile = (fileName: string) => {
+    if (confirm(`Delete ${fileName}?`)) {
+      clientStorage.deleteFile(fileName);
+      window.location.reload();
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Statistics</h2>
-        <p className="text-gray-600">Overview of your codebase</p>
+        <p className="text-gray-600">Overview of your uploaded code</p>
       </div>
 
       {/* Summary Cards */}
@@ -64,7 +40,7 @@ export default function StatsPanel() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm font-medium">Total Chunks</p>
-              <p className="text-3xl font-bold mt-2">{totalChunks}</p>
+              <p className="text-3xl font-bold mt-2">{stats.totalChunks}</p>
             </div>
             <Database className="w-12 h-12 opacity-50" />
           </div>
@@ -73,8 +49,8 @@ export default function StatsPanel() {
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-green-100 text-sm font-medium">Files Indexed</p>
-              <p className="text-3xl font-bold mt-2">{stats.files}</p>
+              <p className="text-green-100 text-sm font-medium">Files Uploaded</p>
+              <p className="text-3xl font-bold mt-2">{stats.totalFiles}</p>
             </div>
             <FileCode className="w-12 h-12 opacity-50" />
           </div>
@@ -86,66 +62,71 @@ export default function StatsPanel() {
               <p className="text-purple-100 text-sm font-medium">Languages</p>
               <p className="text-3xl font-bold mt-2">{languages.length}</p>
             </div>
-            <TrendingUp className="w-12 h-12 opacity-50" />
+            <FileCode className="w-12 h-12 opacity-50" />
           </div>
         </div>
       </div>
 
-      {/* Languages Breakdown */}
+      {/* Language Breakdown */}
       {languages.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Languages Breakdown
-          </h3>
-          <div className="space-y-4">
-            {languages.map(([language, count]) => {
-              const percentage = (count / totalChunks) * 100;
-              return (
-                <div key={language}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700 capitalize">
-                      {language}
-                    </span>
-                    <span className="text-sm text-gray-600">
-                      {count} chunks ({percentage.toFixed(1)}%)
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-primary-600 h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Languages</h3>
+          <div className="space-y-3">
+            {languages.map(([lang, count]) => (
+              <div key={lang}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-gray-700 capitalize">{lang}</span>
+                  <span className="text-sm text-gray-500">{count} files</span>
                 </div>
-              );
-            })}
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-primary-600 h-2 rounded-full transition-all"
+                    style={{ width: `${(count / stats.totalFiles) * 100}%` }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Collection Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <Database className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <h3 className="font-medium text-blue-900 mb-1">Vector Database</h3>
-            <p className="text-sm text-blue-800">
-              Collection: <span className="font-mono">{stats.collection_name}</span>
-            </p>
-            <p className="text-sm text-blue-700 mt-2">
-              All code chunks are stored as embeddings in ChromaDB for fast semantic search.
-            </p>
+      {/* Files List */}
+      {files.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Uploaded Files</h3>
+            <button
+              onClick={handleClearAll}
+              className="flex items-center space-x-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Clear All</span>
+            </button>
+          </div>
+          <div className="space-y-2">
+            {files.map((file) => (
+              <div
+                key={file.id}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <FileCode className="w-5 h-5 text-gray-500" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{file.fileName}</p>
+                    <p className="text-xs text-gray-500 capitalize">{file.language}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDeleteFile(file.fileName)}
+                  className="text-red-600 hover:text-red-700 p-1"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
-
-      {/* Refresh Button */}
-      <div className="text-center">
-        <button onClick={loadStats} className="btn-secondary inline-flex items-center space-x-2">
-          <Loader className="w-4 h-4" />
-          <span>Refresh Stats</span>
-        </button>
-      </div>
+      )}
     </div>
   );
 }
