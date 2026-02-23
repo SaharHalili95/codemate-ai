@@ -18,7 +18,21 @@ export interface CodeChunk {
   lineEnd: number;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatSession {
+  id: string;
+  name: string;
+  messages: ChatMessage[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 const STORAGE_KEY = 'codemate-files';
+const CHAT_SESSIONS_KEY = 'codemate-chat-sessions';
 
 export const clientStorage = {
   // Get all files
@@ -156,5 +170,44 @@ export const clientStorage = {
   // Clear all data
   clear(): void {
     localStorage.removeItem(STORAGE_KEY);
+  },
+
+  // ---- Chat History Methods ----
+
+  // Get all chat sessions, sorted by most recently updated
+  getChatSessions(): ChatSession[] {
+    const stored = localStorage.getItem(CHAT_SESSIONS_KEY);
+    const sessions: ChatSession[] = stored ? JSON.parse(stored) : [];
+    return sessions.sort((a, b) => b.updatedAt - a.updatedAt);
+  },
+
+  // Save (create or update) a chat session
+  saveChatSession(session: ChatSession): void {
+    const sessions = this.getChatSessions();
+    const index = sessions.findIndex(s => s.id === session.id);
+    if (index >= 0) {
+      sessions[index] = session;
+    } else {
+      sessions.push(session);
+    }
+    localStorage.setItem(CHAT_SESSIONS_KEY, JSON.stringify(sessions));
+  },
+
+  // Get a single chat session by id
+  getChatSession(id: string): ChatSession | undefined {
+    return this.getChatSessions().find(s => s.id === id);
+  },
+
+  // Delete a chat session by id
+  deleteChatSession(id: string): void {
+    const sessions = this.getChatSessions().filter(s => s.id !== id);
+    localStorage.setItem(CHAT_SESSIONS_KEY, JSON.stringify(sessions));
+  },
+
+  // Generate a session name from the first user message
+  generateSessionName(firstMessage: string): string {
+    const trimmed = firstMessage.trim();
+    if (trimmed.length <= 40) return trimmed;
+    return trimmed.substring(0, 40) + '...';
   },
 };
