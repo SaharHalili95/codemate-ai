@@ -22,10 +22,9 @@ from app.models.schemas import (
     ErrorResponse,
     MessageRole
 )
-from app.services.embeddings import EmbeddingsService
 from app.services.vector_store import VectorStore
 from app.services.parser import CodeParser
-from app.services.llm import LLMService
+from app.services.demo import demo_embedding, demo_chat_response
 
 
 # ========== Application Lifecycle ==========
@@ -40,14 +39,22 @@ async def lifespan(app: FastAPI):
     print("🚀 Starting CodeMate AI...")
     validate_settings()
 
-    # Initialize services
-    app.state.embeddings = EmbeddingsService()
+    # Vector store and parser work without API keys
     app.state.vector_store = VectorStore()
     app.state.parser = CodeParser(
         chunk_size=settings.chunk_size,
         chunk_overlap=settings.chunk_overlap
     )
-    app.state.llm = LLMService()
+
+    # LLM + embeddings only initialized when not in demo mode
+    if not settings.demo_mode:
+        from app.services.embeddings import EmbeddingsService
+        from app.services.llm import LLMService
+        app.state.embeddings = EmbeddingsService()
+        app.state.llm = LLMService()
+    else:
+        app.state.embeddings = None
+        app.state.llm = None
 
     print("✅ All services initialized")
 
@@ -69,7 +76,12 @@ app = FastAPI(
 # CORS middleware (for frontend)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://codemate-ai.vercel.app",
+        "https://*.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -84,9 +96,9 @@ async def root():
     stats = await app.state.vector_store.get_stats()
 
     return HealthResponse(
-        status="healthy",
+        status="healthy" + (" (demo)" if settings.demo_mode else ""),
         version="1.0.0",
-        llm_provider=settings.llm_provider,
+        llm_provider=settings.llm_provider if not settings.demo_mode else "demo",
         vector_db=settings.vector_db,
         total_chunks=stats["total_chunks"]
     )
@@ -101,30 +113,29 @@ async def upload_code(
 
     Process:
     1. Parse file into chunks
-    2. Generate embeddings
+    2. Generate embeddings (or demo embeddings)
     3. Store in vector database
     """
     try:
-        # Read file content
         content = await file.read()
         content = content.decode("utf-8")
 
-        # Parse into chunks
         chunks = app.state.parser.parse_file(
             file_name=file.filename,
             content=content,
-            strategy="functions"  # or "fixed_size"
+            strategy="functions"
         )
 
         if not chunks:
             raise HTTPException(status_code=400, detail="No code chunks extracted")
 
-        # Generate embeddings
-        embeddings = await app.state.embeddings.create_embeddings_batch(
-            [chunk.content for chunk in chunks]
-        )
+        if settings.demo_mode:
+            embeddings = [demo_embedding(chunk.content) for chunk in chunks]
+        else:
+            embeddings = await app.state.embeddings.create_embeddings_batch(
+                [chunk.content for chunk in chunks]
+            )
 
-        # Store in vector database
         await app.state.vector_store.add_chunks(chunks, embeddings)
 
         return UploadResponse(
@@ -143,45 +154,43 @@ async def upload_code(
 async def chat(request: ChatRequest):
     """
     Chat endpoint - ask questions about your code.
-
-    Process:
-    1. Create embedding for question
-    2. Search for relevant code chunks
-    3. Generate response using LLM
     """
     try:
-        # Create query embedding
-        query_embedding = await app.state.embeddings.create_embedding(request.message)
+        if settings.demo_mode:
+            query_embedding = demo_embedding(request.message)
+        else:
+            query_embedding = await app.state.embeddings.create_embedding(request.message)
 
-        # Search for relevant code
         search_results = await app.state.vector_store.search(
             query_embedding=query_embedding,
             top_k=settings.top_k
         )
 
-        if not search_results:
-            return ChatResponse(
-                message="I couldn't find any relevant code for your question. Please upload some code first.",
-                sources=[],
-                conversation_id=request.conversation_id or "new",
-                model_used=settings.model_name,
-                tokens_used=0
-            )
-
-        # Extract chunks
         context_chunks = [result.chunk for result in search_results]
 
-        # Generate response
-        response_text = await app.state.llm.generate_response(
-            question=request.message,
-            context_chunks=context_chunks
-        )
+        if settings.demo_mode:
+            response_text = demo_chat_response(request.message, context_chunks)
+            model_used = "demo"
+        else:
+            if not search_results:
+                return ChatResponse(
+                    message="I couldn't find any relevant code for your question. Please upload some code first.",
+                    sources=[],
+                    conversation_id=request.conversation_id or "new",
+                    model_used=settings.model_name,
+                    tokens_used=0
+                )
+            response_text = await app.state.llm.generate_response(
+                question=request.message,
+                context_chunks=context_chunks
+            )
+            model_used = settings.model_name
 
         return ChatResponse(
             message=response_text,
             sources=context_chunks,
             conversation_id=request.conversation_id or "new",
-            model_used=settings.model_name
+            model_used=model_used
         )
 
     except Exception as e:
@@ -194,28 +203,35 @@ async def chat_stream(request: ChatRequest):
     Streaming chat endpoint - returns responses in real-time.
     """
     try:
-        # Create query embedding
-        query_embedding = await app.state.embeddings.create_embedding(request.message)
+        if settings.demo_mode:
+            query_embedding = demo_embedding(request.message)
+        else:
+            query_embedding = await app.state.embeddings.create_embedding(request.message)
 
-        # Search for relevant code
         search_results = await app.state.vector_store.search(
             query_embedding=query_embedding,
             top_k=settings.top_k
         )
 
+        context_chunks = [result.chunk for result in search_results]
+
+        if settings.demo_mode:
+            full_response = demo_chat_response(request.message, context_chunks)
+
+            async def demo_stream():
+                # Simulate streaming word by word
+                import asyncio
+                for word in full_response.split(" "):
+                    yield word + " "
+                    await asyncio.sleep(0.03)
+
+            return StreamingResponse(demo_stream(), media_type="text/plain")
+
         if not search_results:
             async def no_results_stream():
                 yield "I couldn't find any relevant code for your question."
+            return StreamingResponse(no_results_stream(), media_type="text/plain")
 
-            return StreamingResponse(
-                no_results_stream(),
-                media_type="text/plain"
-            )
-
-        # Extract chunks
-        context_chunks = [result.chunk for result in search_results]
-
-        # Generate streaming response
         async def generate():
             async for chunk in app.state.llm.generate_response_stream(
                 question=request.message,
@@ -232,19 +248,19 @@ async def chat_stream(request: ChatRequest):
 @app.post("/search", response_model=SearchResponse)
 async def search_code(request: SearchRequest):
     """
-    Search for code semantically (by meaning, not just keywords).
+    Search for code semantically.
     """
     try:
-        # Create query embedding
-        query_embedding = await app.state.embeddings.create_embedding(request.query)
+        if settings.demo_mode:
+            query_embedding = demo_embedding(request.query)
+        else:
+            query_embedding = await app.state.embeddings.create_embedding(request.query)
 
-        # Search
         results = await app.state.vector_store.search(
             query_embedding=query_embedding,
             top_k=request.top_k or settings.top_k
         )
 
-        # Filter by min score
         if request.min_score:
             results = [r for r in results if r.score >= request.min_score]
 
@@ -263,13 +279,7 @@ async def delete_file(file_name: str):
     """Delete all chunks from a specific file."""
     try:
         deleted_count = await app.state.vector_store.delete_by_file(file_name)
-
-        return {
-            "success": True,
-            "file_name": file_name,
-            "chunks_deleted": deleted_count
-        }
-
+        return {"success": True, "file_name": file_name, "chunks_deleted": deleted_count}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -278,9 +288,7 @@ async def delete_file(file_name: str):
 async def get_stats():
     """Get statistics about the vector database."""
     try:
-        stats = await app.state.vector_store.get_stats()
-        return stats
-
+        return await app.state.vector_store.get_stats()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

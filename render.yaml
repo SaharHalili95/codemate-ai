@@ -9,8 +9,10 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: DEMO_MODE
+        value: true
       - key: OPENAI_API_KEY
-        sync: false
+        value: ""
       - key: LLM_PROVIDER
         value: openai
       - key: EMBEDDING_MODEL

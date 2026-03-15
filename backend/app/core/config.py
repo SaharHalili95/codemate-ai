@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     port: int = 8000
     reload: bool = True
 
+    # ========== Demo Mode ==========
+    demo_mode: bool = False
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -62,6 +65,10 @@ def validate_settings():
     """
     בודק שכל ההגדרות הנדרשות מוגדרות
     """
+    if settings.demo_mode:
+        print("⚡ Running in DEMO MODE — no API key required")
+        return
+
     if settings.llm_provider == "openai" and not settings.openai_api_key:
         raise ValueError("OPENAI_API_KEY is required when using OpenAI")
 
