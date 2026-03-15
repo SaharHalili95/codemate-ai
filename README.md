@@ -1,189 +1,99 @@
-# 🤖 CodeMate AI - Client-Side Code Assistant
+# CodeMate AI — RAG-Powered Code Assistant
 
-![CI](https://github.com/SaharHalili95/codemate-ai/actions/workflows/ci.yml/badge.svg)
 ![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)
+![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-🌐 **[Live Demo](https://saharhalili95.github.io/codemate-ai/)**
+A full-stack AI code assistant built on **RAG (Retrieval Augmented Generation)** architecture. Upload code files, and ask natural-language questions about your codebase — the system retrieves the most relevant chunks using vector search and generates precise answers.
 
-A lightweight, privacy-first code assistant that runs entirely in your browser. Upload code files, search through them, and chat with AI about your code - all without sending your code to any server!
+## Architecture
 
-## ✨ Features
+```
+┌──────────────┐     upload      ┌─────────────────────────────────┐
+│   Frontend   │ ─────────────▶  │          FastAPI Backend         │
+│  React + TS  │                 │                                  │
+│              │ ◀────────────── │  1. Parse code into chunks       │
+│  Vite build  │   AI response   │  2. Generate embeddings (OpenAI) │
+└──────────────┘                 │  3. Store in ChromaDB            │
+                                 │  4. Semantic search on query     │
+                                 │  5. GPT-4 generates response     │
+                                 └─────────────────────────────────┘
+```
 
-- 🔒 **100% Client-Side** - Your code never leaves your browser
-- 🤖 **AI-Powered Chat** - Ask questions about your code using OpenAI's GPT-4
-- 🔍 **Code Search** - Find code snippets by keywords
-- 📁 **Multiple Languages** - Python, JavaScript, TypeScript, Java, C++, Go, Rust
-- 💬 **Interactive Chat** - Conversational interface with code context
-- 🎨 **Syntax Highlighting** - Beautiful code display
-- 📊 **Statistics** - View analytics about your uploaded files
-- 🔑 **API Key Management** - Securely stored in your browser's localStorage
+## Tech Stack
 
-## 🚀 Quick Start
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| Backend | FastAPI (async), Python 3.11 |
+| Vector DB | ChromaDB |
+| Embeddings | OpenAI `text-embedding-3-small` |
+| LLM | GPT-4 Turbo |
+| Infra | Docker, Render (backend), Vercel (frontend) |
 
-### Live Demo
+## Features
 
-Visit **[https://saharhalili95.github.io/codemate-ai/](https://saharhalili95.github.io/codemate-ai/)**
+- End-to-end RAG pipeline: parsing → chunking → embeddings → vector search → generation
+- Streaming chat responses (token by token)
+- Semantic code search across entire codebases
+- Supports Python, JavaScript, TypeScript, Java, C++, Go, Rust
+- **Demo mode** — runs without an OpenAI API key for portfolio/demo purposes
 
-1. **Get an OpenAI API Key**
-   - Go to [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
-   - Create a new API key
-   - Copy it
+## Local Development
 
-2. **Set Your API Key**
-   - Click "Set API Key" in the top right
-   - Paste your key
-   - Click "Save" (it's stored securely in your browser)
-
-3. **Upload Code**
-   - Drag and drop a code file (.py, .js, .ts, etc.)
-   - Or click to browse and select
-
-4. **Start Chatting**
-   - Go to the "Chat" tab
-   - Ask questions about your code!
-
-### Local Development
+### Backend
 
 ```bash
-# Clone the repository
-git clone https://github.com/SaharHalili95/codemate-ai.git
-cd codemate-ai/frontend
+cd backend
+pip install -r requirements.txt
 
-# Install dependencies
-npm install
+# With OpenAI API key
+OPENAI_API_KEY=sk-... uvicorn app.main:app --reload
 
-# Start development server
-npm run dev
-
-# Open http://localhost:5173
+# Without API key (demo mode)
+DEMO_MODE=true uvicorn app.main:app --reload
 ```
-
-## 🏗️ How It Works
-
-### Client-Side Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                  Client-Side Processing                  │
-├─────────────────────────────────────────────────────────┤
-│                                                          │
-│  1. Upload Code → localStorage                           │
-│  2. Parse & Chunk Code                                   │
-│  3. User Question                                        │
-│  4. Search Relevant Chunks (keyword matching)            │
-│  5. Send Context + Question → OpenAI API                 │
-│  6. Display AI Response                                  │
-│                                                          │
-│  All processing happens in your browser!                 │
-│  Code never sent anywhere except OpenAI for chat.        │
-└─────────────────────────────────────────────────────────┘
-```
-
-## 💻 Tech Stack
 
 ### Frontend
-- **React 18** - UI framework
-- **TypeScript** - Type safety
-- **Vite** - Build tool
-- **Tailwind CSS** - Styling
-- **React Markdown** - Markdown rendering
-- **React Syntax Highlighter** - Code highlighting
-
-### AI Integration
-- **OpenAI API** - GPT-4 for intelligent responses
-- **localStorage** - Client-side storage
-
-### Services
-- **clientStorage.ts** - Manages code files in localStorage
-- **openai.ts** - Direct OpenAI API integration
-
-## 📦 Project Structure
-
-```
-codemate-ai/
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── App.tsx           # Main app component
-│   │   │   ├── ChatInterface.tsx # Chat UI
-│   │   │   ├── FileUploader.tsx  # File upload
-│   │   │   ├── SearchPanel.tsx   # Code search
-│   │   │   └── StatsPanel.tsx    # Statistics
-│   │   ├── services/
-│   │   │   ├── clientStorage.ts  # localStorage management
-│   │   │   └── openai.ts         # OpenAI API calls
-│   │   └── main.tsx
-│   ├── package.json
-│   └── vite.config.ts
-└── README.md
-```
-
-## 🔑 API Key Security
-
-- Your OpenAI API key is stored in your browser's localStorage
-- It's never sent to any server except OpenAI's official API
-- You can clear it anytime from your browser settings
-- Consider setting usage limits on your OpenAI account
-
-## 🌟 Features in Detail
-
-### 1. File Upload
-- Drag & drop or browse to select files
-- Supports .py, .js, .ts, .tsx, .jsx, .java, .cpp, .go, .rs
-- Files stored locally in your browser
-- Automatic language detection
-
-### 2. Code Search
-- Simple keyword-based search
-- Searches through all uploaded files
-- Displays matches with syntax highlighting
-- Shows file name and line numbers
-
-### 3. AI Chat
-- Ask questions about your uploaded code
-- AI retrieves relevant code chunks as context
-- Supports conversation history
-- Markdown formatting in responses
-- Syntax-highlighted code blocks
-
-### 4. Statistics
-- Total files and chunks
-- Language breakdown
-- File management (delete individual files or clear all)
-
-## 🚀 Deployment
-
-The app is automatically deployed to GitHub Pages when changes are pushed to main.
-
-To deploy manually:
 
 ```bash
 cd frontend
-npm run build
-npm run deploy
+npm install
+VITE_API_URL=http://localhost:8000 npm run dev
 ```
 
-## 📝 License
+### Docker (full stack)
 
-MIT License - see [LICENSE](LICENSE) file for details
+```bash
+cp .env.example .env   # add OPENAI_API_KEY or set DEMO_MODE=true
+docker-compose up
+```
 
-## 👤 Author
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `OPENAI_API_KEY` | OpenAI API key | — |
+| `DEMO_MODE` | Run without API key | `false` |
+| `LLM_PROVIDER` | `openai` or `anthropic` | `openai` |
+| `MODEL_NAME` | LLM model name | `gpt-4-turbo-preview` |
+| `CHUNK_SIZE` | Tokens per chunk | `1000` |
+| `TOP_K` | Chunks retrieved per query | `5` |
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/` | Health check |
+| POST | `/upload` | Upload and index a code file |
+| POST | `/chat` | Ask a question about the codebase |
+| POST | `/chat/stream` | Streaming chat |
+| POST | `/search` | Semantic code search |
+| DELETE | `/files/{name}` | Remove a file from the index |
+| GET | `/stats` | Vector DB statistics |
+
+## Author
 
 **Sahar Halili**
-
 - GitHub: [@SaharHalili95](https://github.com/SaharHalili95)
-- Portfolio: [saharhalili95.github.io/html-portfolio](https://saharhalili95.github.io/html-portfolio/)
 - LinkedIn: [Sahar Halili](https://www.linkedin.com/in/sahar-halili-36ba38300)
-
-## 🙏 Acknowledgments
-
-- OpenAI for the GPT API
-- React and Vite communities
-- All open-source contributors
-
----
-
-**Built with ❤️ and 🤖 AI**
-
-⭐ Star this repo if you find it useful!
