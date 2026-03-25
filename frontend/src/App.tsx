@@ -4,15 +4,21 @@ import ChatInterface from './components/ChatInterface';
 import FileUploader from './components/FileUploader';
 import SearchPanel from './components/SearchPanel';
 import StatsPanel from './components/StatsPanel';
+import LandingPage from './components/LandingPage';
 import { clientStorage } from './services/clientStorage';
 
 type Tab = 'upload' | 'chat' | 'search' | 'stats';
 
 function App() {
+  const [launched, setLaunched] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('upload');
   const [apiKey, setApiKey] = useState(localStorage.getItem('openai-api-key') || '');
   const [showApiKeyInput, setShowApiKeyInput] = useState(!apiKey);
   const [stats, setStats] = useState(clientStorage.getStats());
+
+  if (!launched) {
+    return <LandingPage onLaunch={() => setLaunched(true)} />;
+  }
 
   const handleApiKeySave = () => {
     localStorage.setItem('openai-api-key', apiKey);
