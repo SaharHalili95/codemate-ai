@@ -6,6 +6,8 @@
 
 A full-stack AI code assistant built on **RAG (Retrieval Augmented Generation)** architecture. Upload code files, and ask natural-language questions about your codebase — the system retrieves the most relevant chunks using vector search and generates precise answers.
 
+**Live demo:** https://saharhalili95.github.io/codemate-ai/
+
 ## Architecture
 
 ```
@@ -29,7 +31,7 @@ A full-stack AI code assistant built on **RAG (Retrieval Augmented Generation)**
 | Vector DB | ChromaDB |
 | Embeddings | OpenAI `text-embedding-3-small` |
 | LLM | GPT-4 Turbo |
-| Infra | Docker, Render (backend), Vercel (frontend) |
+| Infra | Docker, Railway (backend), Vercel (frontend) |
 
 ## Features
 
