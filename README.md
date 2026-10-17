@@ -98,4 +98,4 @@ docker-compose up
 
 **Sahar Halili**
 - GitHub: [@SaharHalili95](https://github.com/SaharHalili95)
-- LinkedIn: [Sahar Halili](https://www.linkedin.com/in/sahar-halili-36ba38300)
+- LinkedIn: [Sahar Halili](https://www.linkedin.com/in/sahar-halili)
