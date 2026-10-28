@@ -1,34 +1,9 @@
-"""
-Demo Mode Service
-=================
-Returns realistic mock responses without any API key.
-Used when DEMO_MODE=true is set in environment.
-"""
-
-import random
-import hashlib
-from typing import List
-from app.models.schemas import CodeChunk, CodeLanguage
+from app.models.schemas import CodeChunk
 
 
-def demo_embedding(text: str) -> List[float]:
-    """
-    Generate a deterministic pseudo-embedding from text.
-    Uses a seeded random so the same text always gets the same vector,
-    which makes ChromaDB similarity search work meaningfully in demo mode.
-    """
-    seed = int(hashlib.md5(text.encode()).hexdigest(), 16) % (2 ** 32)
-    rng = random.Random(seed)
-    return [rng.uniform(-1.0, 1.0) for _ in range(1536)]
-
-
-def demo_chat_response(question: str, context_chunks: List[CodeChunk]) -> str:
-    """
-    Generate a realistic-looking demo response based on the question and code context.
-    """
+def demo_chat_response(question: str, context_chunks: list[CodeChunk]) -> str:
     q = question.lower()
 
-    # Build a context summary from the actual chunks
     file_names = list({c.file_name for c in context_chunks})
     files_str = ", ".join(f"`{f}`" for f in file_names) if file_names else "the uploaded files"
 
@@ -54,7 +29,6 @@ def demo_chat_response(question: str, context_chunks: List[CodeChunk]) -> str:
             f"Analyzing the code in {files_str}:\n\n"
         )
 
-    # Add chunk-specific content
     if context_chunks:
         chunk = context_chunks[0]
         lines = chunk.content.strip().split("\n")
@@ -77,14 +51,3 @@ def demo_chat_response(question: str, context_chunks: List[CodeChunk]) -> str:
         )
 
     return template + body
-
-
-def demo_upload_response(file_name: str, chunks: List[CodeChunk]) -> dict:
-    """Return a realistic upload summary for demo mode."""
-    return {
-        "success": True,
-        "file_name": file_name,
-        "chunks_created": len(chunks),
-        "language": chunks[0].language if chunks else CodeLanguage.UNKNOWN,
-        "message": f"✅ Demo mode: processed {len(chunks)} chunks from {file_name}",
-    }

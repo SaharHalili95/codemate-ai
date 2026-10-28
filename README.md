@@ -1,4 +1,4 @@
-# CodeMate AI — RAG-Powered Code Assistant
+# CodeMate AI - RAG-Powered Code Assistant
 
 ![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
@@ -6,7 +6,7 @@
 
 A full-stack AI code assistant built on **RAG (Retrieval Augmented Generation)** architecture. Upload code files, and ask natural-language questions about your codebase — the system retrieves the most relevant chunks using vector search and generates precise answers.
 
-**Live demo:** https://saharhalili95.github.io/codemate-ai/
+**Landing page:** https://saharhalili95.github.io/codemate-ai/ (the app itself runs locally; see below)
 
 ## Architecture
 
@@ -18,7 +18,7 @@ A full-stack AI code assistant built on **RAG (Retrieval Augmented Generation)**
 │  Vite build  │   AI response   │  2. Generate embeddings (OpenAI) │
 └──────────────┘                 │  3. Store in ChromaDB            │
                                  │  4. Semantic search on query     │
-                                 │  5. GPT-4 generates response     │
+                                 │  5. LLM generates response       │
                                  └─────────────────────────────────┘
 ```
 
@@ -30,12 +30,14 @@ A full-stack AI code assistant built on **RAG (Retrieval Augmented Generation)**
 | Backend | FastAPI (async), Python 3.11 |
 | Vector DB | ChromaDB |
 | Embeddings | OpenAI `text-embedding-3-small` |
-| LLM | GPT-4 Turbo |
-| Infra | Docker, Railway (backend), Vercel (frontend) |
+| LLM | OpenAI or Anthropic (configurable) |
+| Tests | pytest (API in demo mode, prompt building) |
+| Infra | Docker, deploy configs for Render (backend) and Vercel (frontend) |
 
 ## Features
 
 - End-to-end RAG pipeline: parsing → chunking → embeddings → vector search → generation
+- One prompt builder for every LLM provider: OpenAI and Anthropic only differ in how the API is called
 - Streaming chat responses (token by token)
 - Semantic code search across entire codebases
 - Supports Python, JavaScript, TypeScript, Java, C++, Go, Rust
@@ -71,11 +73,43 @@ cp .env.example .env   # add OPENAI_API_KEY or set DEMO_MODE=true
 docker-compose up
 ```
 
+## Backend Structure
+
+```
+backend/app/
+├── main.py            # App setup: lifespan, CORS, router registration
+├── dependencies.py    # FastAPI dependencies
+├── routes/            # HTTP layer only; __init__.py combines the routers
+│   ├── health.py      # GET /, GET /stats
+│   ├── files.py       # POST /upload, DELETE /files/{name}
+│   ├── chat.py        # POST /chat, POST /chat/stream
+│   └── search.py      # POST /search
+├── services/
+│   ├── codebase.py    # RAG pipeline: index, search, answer
+│   ├── llm.py         # ChatModel interface: OpenAI, Anthropic, Demo
+│   ├── embeddings.py  # Embedder interface: OpenAI, Demo
+│   ├── vector_store.py
+│   ├── parser.py      # Chunking by function or fixed size
+│   └── demo.py        # Canned answers for demo mode
+├── models/schemas.py
+└── core/config.py
+```
+
+Demo mode swaps in `DemoEmbedder` and `DemoChatModel`, so routes and the RAG pipeline have no demo-specific branches.
+
+## Tests
+
+```bash
+cd backend
+pip install -r requirements.txt
+pytest
+```
+
 ## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `OPENAI_API_KEY` | OpenAI API key | — |
+| `OPENAI_API_KEY` | OpenAI API key (needed for embeddings with either provider) | - |
 | `DEMO_MODE` | Run without API key | `false` |
 | `LLM_PROVIDER` | `openai` or `anthropic` | `openai` |
 | `MODEL_NAME` | LLM model name | `gpt-4-turbo-preview` |
