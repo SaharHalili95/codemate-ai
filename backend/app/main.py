@@ -1,304 +1,56 @@
-"""
-CodeMate AI - FastAPI Backend
-==============================
-Main application entry point.
-"""
-
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+import logging
 from contextlib import asynccontextmanager
+
 import uvicorn
-from typing import Optional
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings, validate_settings
-from app.models.schemas import (
-    ChatRequest,
-    ChatResponse,
-    SearchRequest,
-    SearchResponse,
-    UploadResponse,
-    HealthResponse,
-    ErrorResponse,
-    MessageRole
-)
-from app.services.vector_store import VectorStore
+from app.routes import api_router
+from app.services.codebase import CodebaseService
+from app.services.embeddings import DemoEmbedder, OpenAIEmbedder
+from app.services.llm import create_chat_model
 from app.services.parser import CodeParser
-from app.services.demo import demo_embedding, demo_chat_response
+from app.services.vector_store import VectorStore
 
+logger = logging.getLogger(__name__)
 
-# ========== Application Lifecycle ==========
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Application lifecycle management.
-    Runs on startup and shutdown.
-    """
-    # Startup
-    print("🚀 Starting CodeMate AI...")
     validate_settings()
-
-    # Vector store and parser work without API keys
-    app.state.vector_store = VectorStore()
-    app.state.parser = CodeParser(
-        chunk_size=settings.chunk_size,
-        chunk_overlap=settings.chunk_overlap
+    app.state.codebase = CodebaseService(
+        parser=CodeParser(chunk_size=settings.chunk_size, chunk_overlap=settings.chunk_overlap),
+        embedder=DemoEmbedder() if settings.demo_mode else OpenAIEmbedder(),
+        store=VectorStore(),
+        chat_model=create_chat_model(),
+        top_k=settings.top_k,
     )
-
-    # LLM + embeddings only initialized when not in demo mode
-    if not settings.demo_mode:
-        from app.services.embeddings import EmbeddingsService
-        from app.services.llm import LLMService
-        app.state.embeddings = EmbeddingsService()
-        app.state.llm = LLMService()
-    else:
-        app.state.embeddings = None
-        app.state.llm = None
-
-    print("✅ All services initialized")
-
+    logger.info("CodeMate AI started (demo mode: %s)", settings.demo_mode)
     yield
 
-    # Shutdown
-    print("👋 Shutting down CodeMate AI...")
-
-
-# ========== FastAPI App ==========
 
 app = FastAPI(
     title="CodeMate AI",
     description="RAG-Powered Code Assistant API",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
-# CORS middleware (for frontend)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:3000",
         "https://codemate-ai.vercel.app",
-        "https://*.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(api_router)
 
-# ========== API Endpoints ==========
-
-@app.get("/", response_model=HealthResponse)
-async def root():
-    """Health check endpoint."""
-    stats = await app.state.vector_store.get_stats()
-
-    return HealthResponse(
-        status="healthy" + (" (demo)" if settings.demo_mode else ""),
-        version="1.0.0",
-        llm_provider=settings.llm_provider if not settings.demo_mode else "demo",
-        vector_db=settings.vector_db,
-        total_chunks=stats["total_chunks"]
-    )
-
-
-@app.post("/upload", response_model=UploadResponse)
-async def upload_code(
-    file: UploadFile = File(...)
-):
-    """
-    Upload a code file and process it.
-
-    Process:
-    1. Parse file into chunks
-    2. Generate embeddings (or demo embeddings)
-    3. Store in vector database
-    """
-    try:
-        content = await file.read()
-        content = content.decode("utf-8")
-
-        chunks = app.state.parser.parse_file(
-            file_name=file.filename,
-            content=content,
-            strategy="functions"
-        )
-
-        if not chunks:
-            raise HTTPException(status_code=400, detail="No code chunks extracted")
-
-        if settings.demo_mode:
-            embeddings = [demo_embedding(chunk.content) for chunk in chunks]
-        else:
-            embeddings = await app.state.embeddings.create_embeddings_batch(
-                [chunk.content for chunk in chunks]
-            )
-
-        await app.state.vector_store.add_chunks(chunks, embeddings)
-
-        return UploadResponse(
-            success=True,
-            file_name=file.filename,
-            chunks_created=len(chunks),
-            language=chunks[0].language,
-            message=f"Successfully processed {len(chunks)} chunks"
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    """
-    Chat endpoint - ask questions about your code.
-    """
-    try:
-        if settings.demo_mode:
-            query_embedding = demo_embedding(request.message)
-        else:
-            query_embedding = await app.state.embeddings.create_embedding(request.message)
-
-        search_results = await app.state.vector_store.search(
-            query_embedding=query_embedding,
-            top_k=settings.top_k
-        )
-
-        context_chunks = [result.chunk for result in search_results]
-
-        if settings.demo_mode:
-            response_text = demo_chat_response(request.message, context_chunks)
-            model_used = "demo"
-        else:
-            if not search_results:
-                return ChatResponse(
-                    message="I couldn't find any relevant code for your question. Please upload some code first.",
-                    sources=[],
-                    conversation_id=request.conversation_id or "new",
-                    model_used=settings.model_name,
-                    tokens_used=0
-                )
-            response_text = await app.state.llm.generate_response(
-                question=request.message,
-                context_chunks=context_chunks
-            )
-            model_used = settings.model_name
-
-        return ChatResponse(
-            message=response_text,
-            sources=context_chunks,
-            conversation_id=request.conversation_id or "new",
-            model_used=model_used
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/chat/stream")
-async def chat_stream(request: ChatRequest):
-    """
-    Streaming chat endpoint - returns responses in real-time.
-    """
-    try:
-        if settings.demo_mode:
-            query_embedding = demo_embedding(request.message)
-        else:
-            query_embedding = await app.state.embeddings.create_embedding(request.message)
-
-        search_results = await app.state.vector_store.search(
-            query_embedding=query_embedding,
-            top_k=settings.top_k
-        )
-
-        context_chunks = [result.chunk for result in search_results]
-
-        if settings.demo_mode:
-            full_response = demo_chat_response(request.message, context_chunks)
-
-            async def demo_stream():
-                # Simulate streaming word by word
-                import asyncio
-                for word in full_response.split(" "):
-                    yield word + " "
-                    await asyncio.sleep(0.03)
-
-            return StreamingResponse(demo_stream(), media_type="text/plain")
-
-        if not search_results:
-            async def no_results_stream():
-                yield "I couldn't find any relevant code for your question."
-            return StreamingResponse(no_results_stream(), media_type="text/plain")
-
-        async def generate():
-            async for chunk in app.state.llm.generate_response_stream(
-                question=request.message,
-                context_chunks=context_chunks
-            ):
-                yield chunk
-
-        return StreamingResponse(generate(), media_type="text/plain")
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/search", response_model=SearchResponse)
-async def search_code(request: SearchRequest):
-    """
-    Search for code semantically.
-    """
-    try:
-        if settings.demo_mode:
-            query_embedding = demo_embedding(request.query)
-        else:
-            query_embedding = await app.state.embeddings.create_embedding(request.query)
-
-        results = await app.state.vector_store.search(
-            query_embedding=query_embedding,
-            top_k=request.top_k or settings.top_k
-        )
-
-        if request.min_score:
-            results = [r for r in results if r.score >= request.min_score]
-
-        return SearchResponse(
-            results=results,
-            total=len(results),
-            query=request.query
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.delete("/files/{file_name}")
-async def delete_file(file_name: str):
-    """Delete all chunks from a specific file."""
-    try:
-        deleted_count = await app.state.vector_store.delete_by_file(file_name)
-        return {"success": True, "file_name": file_name, "chunks_deleted": deleted_count}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/stats")
-async def get_stats():
-    """Get statistics about the vector database."""
-    try:
-        return await app.state.vector_store.get_stats()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ========== Run Server ==========
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "app.main:app",
-        host=settings.host,
-        port=settings.port,
-        reload=settings.reload
-    )
+    uvicorn.run("app.main:app", host=settings.host, port=settings.port, reload=settings.reload)
