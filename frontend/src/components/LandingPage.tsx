@@ -1,4 +1,4 @@
-import { MessageSquare, Search, Upload, Zap, Github, ArrowRight, Code2, Database, Brain } from 'lucide-react';
+import { MessageSquare, Search, Upload, Github, ArrowRight, Code2, Database, Brain } from 'lucide-react';
 
 interface LandingPageProps {
   onLaunch: () => void;
@@ -23,7 +23,7 @@ const features = [
   {
     icon: MessageSquare,
     title: 'AI Chat on Your Code',
-    description: 'Ask GPT-4 anything about your codebase. It retrieves the most relevant context and gives precise answers.',
+    description: 'Ask anything about your codebase. It retrieves the most relevant code and an LLM (OpenAI or Claude) answers with that context.',
   },
 ];
 
@@ -33,7 +33,7 @@ const steps = [
   { number: '03', title: 'Ask', description: 'Ask questions in plain English — get answers with code context' },
 ];
 
-const techStack = ['FastAPI', 'OpenAI GPT-4', 'ChromaDB', 'React', 'TypeScript', 'Tailwind CSS', 'Railway', 'Vercel'];
+const techStack = ['FastAPI', 'ChromaDB', 'OpenAI API', 'Claude API', 'React', 'TypeScript', 'Tailwind CSS', 'pytest', 'Render', 'Vercel'];
 
 export default function LandingPage({ onLaunch }: LandingPageProps) {
   return (
@@ -68,22 +68,17 @@ export default function LandingPage({ onLaunch }: LandingPageProps) {
 
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-6 pt-20 pb-24 text-center">
-        <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 text-sm px-4 py-1.5 rounded-full mb-6">
-          <Zap className="w-3.5 h-3.5" />
-          RAG-Powered Code Assistant
-        </div>
-
         <h1 className="text-5xl sm:text-6xl font-bold leading-tight mb-6">
           Chat with your
           <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
+          <span className="text-blue-400">
             codebase
           </span>
         </h1>
 
         <p className="text-slate-400 text-lg max-w-2xl mx-auto mb-10 leading-relaxed">
           Upload code files and ask questions in plain English.
-          Semantic search + GPT-4 retrieves the right context and gives precise answers — no more digging through files.
+          Semantic search finds the right code, and the model answers with it as context — no more digging through files.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -155,7 +150,7 @@ export default function LandingPage({ onLaunch }: LandingPageProps) {
               'OpenAI Embeddings',
               'ChromaDB Vector Store',
               'Semantic Retrieval',
-              'GPT-4 Generation',
+              'LLM answer (OpenAI or Claude)',
             ].map((step, i, arr) => (
               <div key={step} className="flex items-center gap-3">
                 <span className="bg-blue-500/10 border border-blue-500/20 text-blue-300 px-3 py-1.5 rounded-lg">
@@ -187,7 +182,7 @@ export default function LandingPage({ onLaunch }: LandingPageProps) {
       <section className="max-w-6xl mx-auto px-6 py-16 text-center">
         <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-500/20 rounded-2xl p-12">
           <h2 className="text-3xl font-bold mb-4">Ready to explore your codebase?</h2>
-          <p className="text-slate-400 mb-8">Bring your OpenAI API key and start asking questions.</p>
+          <p className="text-slate-400 mb-8">The live demo runs in your browser with your own OpenAI key. The full FastAPI backend also runs locally with no key in demo mode.</p>
           <button
             onClick={onLaunch}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-4 rounded-xl transition-colors text-base mx-auto"
