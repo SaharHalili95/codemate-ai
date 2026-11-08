@@ -195,7 +195,7 @@ export default function LandingPage({ onLaunch }: LandingPageProps) {
 
       {/* Footer */}
       <footer className="max-w-6xl mx-auto px-6 py-8 border-t border-white/10 flex items-center justify-between text-sm text-slate-500">
-        <span>Built by <a href="https://github.com/SaharHalili95" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">Sahar Halili</a></span>
+        <span>© 2025-2026 · Built by <a href="https://github.com/SaharHalili95" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">Sahar Halili</a></span>
         <a href="https://github.com/SaharHalili95/codemate-ai" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-slate-300 transition-colors">
           <Github className="w-4 h-4" />
           View on GitHub
